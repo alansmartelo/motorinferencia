@@ -8,17 +8,22 @@ struct Regra {
     conclusao: String,
 }
 
-fn perguntar_usuario(fato: &str) -> bool {
-    print!("\n--- Pergunta: Isso está acontecendo: '{}'? (s/n): ", fato);
+fn ler_entrada(mensagem: &str) -> String {
+    print!("{}", mensagem);
     io::stdout().flush().unwrap();
-    let mut resposta = String::new();
-    io::stdin().read_line(&mut resposta).unwrap();
-    resposta.trim().to_lowercase() == "s"
+    let mut entrada = String::new();
+    io::stdin().read_line(&mut entrada).expect("Falha ao ler");
+    entrada.trim().to_string()
 }
 
+fn perguntar_usuario(fato: &str) -> bool {
+    let resposta = ler_entrada(&format!("\n--- Pergunta: Isso está acontecendo: '{}'? (s/n): ", fato));
+    resposta.to_lowercase() == "s"
+}
+
+// ... (Função provar continua a mesma lógica da v2.1)
 fn provar(objetivo: &str, fatos: &mut Vec<String>, regras: &Vec<Regra>) -> bool {
     if fatos.contains(&objetivo.to_string()) { return true; }
-
     for regra in regras {
         if regra.conclusao == objetivo {
             let mut todas_provadas = true;
@@ -34,7 +39,6 @@ fn provar(objetivo: &str, fatos: &mut Vec<String>, regras: &Vec<Regra>) -> bool 
             }
         }
     }
-
     if perguntar_usuario(objetivo) {
         fatos.push(objetivo.to_string());
         return true;
@@ -43,21 +47,28 @@ fn provar(objetivo: &str, fatos: &mut Vec<String>, regras: &Vec<Regra>) -> bool 
 }
 
 fn main() {
-    let dados_json = fs::read_to_string("regras.json")
-        .expect("Erro ao abrir o arquivo regras.json");
-    
-    let regras: Vec<Regra> = serde_json::from_str(&dados_json)
-        .expect("Erro ao converter o JSON");
+    println!("\n=== MOTOR DE INFERÊNCIA POLIGLOTA (JSON/YAML) ===");
 
-    let mut fatos_conhecidos = Vec::new();
-    let objetivo = "monitor_estragado";
+    let nome_arquivo = ler_entrada("Digite o nome do arquivo (ex: regras.json ou regras.yaml): ");
+    let conteudo = fs::read_to_string(&nome_arquivo)
+        .unwrap_or_else(|_| panic!("❌ Arquivo '{}' não encontrado!", nome_arquivo));
 
-    println!("\n=== MOTOR DE INFERÊNCIA v2 (JSON) ===");
-    println!("Conhecimento carregado: {} regras do arquivo externo.", regras.len());
-
-    if provar(objetivo, &mut fatos_conhecidos, &regras) {
-        println!("\n✅ CONCLUSÃO: {} é VERDADE.", objetivo);
+    // A MÁGICA ACONTECE AQUI:
+    let regras: Vec<Regra> = if nome_arquivo.ends_with(".yaml") || nome_arquivo.ends_with(".yml") {
+        println!("📂 Detectado formato YAML...");
+        serde_yaml::from_str(&conteudo).expect("❌ Erro no formato YAML!")
     } else {
-        println!("\n❌ CONCLUSÃO: Não foi possível provar {}.", objetivo);
+        println!("📂 Detectado formato JSON...");
+        serde_json::from_str(&conteudo).expect("❌ Erro no formato JSON!")
+    };
+
+    println!("✅ {} regras carregadas com sucesso!", regras.len());
+    let objetivo = ler_entrada("O que deseja provar? ");
+    let mut fatos_conhecidos = Vec::new();
+
+    if provar(&objetivo, &mut fatos_conhecidos, &regras) {
+        println!("\n✅ CONCLUSÃO: '{}' é VERDADEIRO!", objetivo);
+    } else {
+        println!("\n❌ CONCLUSÃO: Não foi possível provar '{}'.", objetivo);
     }
 }

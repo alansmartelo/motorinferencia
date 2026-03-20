@@ -1,0 +1,4 @@
+- conclusao: motor_fervendo
+  premissas:
+    - ponteiro_no_vermelho
+    - vapor_saindo_capô
